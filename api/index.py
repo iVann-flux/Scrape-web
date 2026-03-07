@@ -10,15 +10,16 @@ app = Flask(__name__)
 
 # ভার্সেল সেটিংস থেকে চাবিটি নেবে
 AES_RAW_KEY = os.environ.get("AES_KEY")
-GITHUB_RAW_BASE = "https://raw.githubusercontent.com/api00007/Scrape-web/main/"
+
+# এখানে আমি ইউজারনেম ঠিক করে দিয়েছি (iVann-flux)
+GITHUB_RAW_BASE = "https://raw.githubusercontent.com/iVann-flux/Scrape-web/main/"
 
 def decrypt_data(encrypted_str):
     try:
         if not AES_RAW_KEY:
-            return {"error": "AES_KEY is not set in Vercel Environment Variables"}
+            return {"error": "AES_KEY is missing in Vercel settings!"}
             
         key = AES_RAW_KEY.encode()
-        # এনক্রিপ্টেড স্ট্রিং থেকে ডাটা বের করা
         data = base64.b64decode(encrypted_str)
         iv = data[:16] 
         encrypted_bytes = data[16:]
@@ -39,11 +40,14 @@ def get_data(filename):
         response = requests.get(github_url)
         if response.status_code == 200:
             encrypted_content = response.text.strip()
-            # ডাটা ডিক্রিপ্ট করা হচ্ছে
             decrypted_json = decrypt_data(encrypted_content)
             return jsonify(decrypted_json)
         else:
-            return jsonify({"error": f"File '{target_file}' not found on GitHub. Check branch name or file name."}), 404
+            # এখন এরর আসলে আপনি গিটহাব ইউআরএল টি দেখতে পাবেন (ডিবাগ করার জন্য সহজ হবে)
+            return jsonify({
+                "error": f"File '{target_file}' not found.",
+                "checked_url": github_url
+            }), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -51,9 +55,6 @@ def get_data(filename):
 def home():
     return jsonify({
         "Owner": "iVan-flux",
-        "Status": "API is Live",
-        "Instruction": "Append /fawna to the URL to see decrypted data."
+        "message": "Welcome to iVan-flux API",
+        "usage": "Add /fawna to your URL."
     })
-
-# এটি ভার্সেলের জন্য জরুরি (Python Serverless Function)
-# অতিরিক্ত কোনো handler দরকার নেই, ফ্লাস্ক অটোমেটিক কাজ করবে
