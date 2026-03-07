@@ -8,22 +8,21 @@ from Crypto.Util.Padding import unpad
 
 app = Flask(__name__)
 
-# --- সেটিংস ---
-# কোড থেকে চাবি মুছে ফেলা হয়েছে। এখন এটি শুধুমাত্র Vercel এর Environment Variable থেকে 'AES_KEY' নেবে।
+# ভার্সেল সেটিংস থেকে চাবিটি নেবে
 AES_RAW_KEY = os.environ.get("AES_KEY")
-
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com/api00007/Scrape-web/main/"
 
 def decrypt_data(encrypted_str):
     try:
-        # যদি ভার্সেলে চাবি সেট করা না থাকে
         if not AES_RAW_KEY:
-            return {"error": "AES_KEY is missing in Vercel settings!"}
+            return {"error": "AES_KEY is not set in Vercel Environment Variables"}
             
         key = AES_RAW_KEY.encode()
+        # এনক্রিপ্টেড স্ট্রিং থেকে ডাটা বের করা
         data = base64.b64decode(encrypted_str)
-        iv = data[:16] # প্রথম ১৬ বাইট হলো IV
+        iv = data[:16] 
         encrypted_bytes = data[16:]
+        
         cipher = AES.new(key, AES.MODE_CBC, iv)
         decrypted_bytes = unpad(cipher.decrypt(encrypted_bytes), AES.block_size)
         return json.loads(decrypted_bytes.decode())
@@ -44,7 +43,7 @@ def get_data(filename):
             decrypted_json = decrypt_data(encrypted_content)
             return jsonify(decrypted_json)
         else:
-            return jsonify({"error": f"File {target_file} not found on GitHub"}), 404
+            return jsonify({"error": f"File '{target_file}' not found on GitHub. Check branch name or file name."}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -52,10 +51,9 @@ def get_data(filename):
 def home():
     return jsonify({
         "Owner": "iVan-flux",
-        "message": "Welcome to iVan-flux API",
-        "usage": "Append /fawna or /roxi to the URL."
+        "Status": "API is Live",
+        "Instruction": "Append /fawna to the URL to see decrypted data."
     })
 
-# Vercel handler
-def handler(event, context):
-    return app(event, context)
+# এটি ভার্সেলের জন্য জরুরি (Python Serverless Function)
+# অতিরিক্ত কোনো handler দরকার নেই, ফ্লাস্ক অটোমেটিক কাজ করবে
