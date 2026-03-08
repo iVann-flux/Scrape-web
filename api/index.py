@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, Response, jsonify
 import requests
 import base64
 import os
@@ -8,10 +8,8 @@ from Crypto.Util.Padding import unpad
 
 app = Flask(__name__)
 
-# ভার্সেল সেটিংস থেকে চাবিটি নেবে
+# ভার্সেল সেটিংস থেকে চাবি নেবে
 AES_RAW_KEY = os.environ.get("AES_KEY")
-
-# এখানে আমি ইউজারনেম ঠিক করে দিয়েছি (iVann-flux)
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com/iVann-flux/Scrape-web/main/"
 
 def decrypt_data(encrypted_str):
@@ -26,13 +24,14 @@ def decrypt_data(encrypted_str):
         
         cipher = AES.new(key, AES.MODE_CBC, iv)
         decrypted_bytes = unpad(cipher.decrypt(encrypted_bytes), AES.block_size)
+        
+        # ডিক্রিপ্ট করার পর ডাটা যেভাবে আছে সেভাবেই লোড করবে (অর্ডার ঠিক থাকবে)
         return json.loads(decrypted_bytes.decode())
     except Exception as e:
         return {"error": f"Decryption failed: {str(e)}"}
 
 @app.route('/<filename>')
 def get_data(filename):
-    # ইউজার /fawna লিখলে সে fawna.json খুঁজবে
     target_file = f"{filename}.json"
     github_url = f"{GITHUB_RAW_BASE}{target_file}"
     
@@ -41,20 +40,27 @@ def get_data(filename):
         if response.status_code == 200:
             encrypted_content = response.text.strip()
             decrypted_json = decrypt_data(encrypted_content)
-            return jsonify(decrypted_json)
+            
+            # --- ট্রেডমার্ক উপরে রাখার আসল জাদু ---
+            # sort_keys=False দিলে পাইথন ডিকশনারির সিরিয়াল নষ্ট হবে না
+            output = json.dumps(decrypted_json, indent=4, sort_keys=False)
+            return Response(output, mimetype='application/json')
         else:
-            # এখন এরর আসলে আপনি গিটহাব ইউআরএল টি দেখতে পাবেন (ডিবাগ করার জন্য সহজ হবে)
-            return jsonify({
-                "error": f"File '{target_file}' not found.",
-                "checked_url": github_url
-            }), 404
+            return Response(json.dumps({"error": f"File '{target_file}' not found."}), status=404, mimetype='application/json')
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return Response(json.dumps({"error": str(e)}), status=500, mimetype='application/json')
 
 @app.route('/')
 def home():
-    return jsonify({
+    home_data = {
         "Owner": "iVan-flux",
-        "message": "Welcome to iVan-flux API",
-        "usage": "Add /fawna to your URL."
-    })
+        "Telegram": "https://t.me/iVan_flux",
+        "App name": "fawna-auto-scarpe-api",
+        "Status": "API is Live",
+        "Usage": "Add /fawna to URL"
+    }
+    return Response(json.dumps(home_data, indent=4, sort_keys=False), mimetype='application/json')
+
+# ভার্সেলে ফ্ল্যাস্কের জন্য বাড়তি কোনো handler এর প্রয়োজন নেই
+if __name__ == '__main__':
+    app.run()
